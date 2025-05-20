@@ -4,7 +4,7 @@ WORKDIR /app
 
 USER node
 
-COPY --chown=node package.json yarn.lock .npmrc /app
+COPY --chown=node package.json yarn.lock .npmrc /src
 
 # Build-time secret prevents token from persisting in docker layer cache.
 # Use e.g. `docker build . -t my-app --secret id=github_npm_pat,env=PERSONAL_ACCESS_TOKEN`
