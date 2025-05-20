@@ -1,0 +1,19 @@
+{
+  "awsTerraformVersion": "3.0",
+  "tfProdLockedDown": false,
+  "includeTfDev": true,
+  "isChina": false,
+  "service": "test-service",
+  "tfVersion": "1.8.8",
+  "xomDomain": "mktp",
+  "inScalr": true,
+  "contactEmail": "",
+  "slackChannel": "marketplace-services-zone",
+  "codeStatus": "exploratory",
+  "isSOX": true,
+  "configVersion": 1,
+  "deploymentAccount": "commercial",
+  "scaffold": "ts-api",
+  "appTypeScaffolded": "ts-api",
+  "opsGenieId": ""
+}

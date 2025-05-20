@@ -1,0 +1,128 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "test-service.fullname" . }}
+  labels:
+    {{- include "test-service.labels" . | nindent 4 }}
+    {{- include "test-service.selectorLabels" . | nindent 4 }}
+
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "test-service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "test-service.labels" . | nindent 8 }}
+        {{- include "test-service.selectorLabels" . | nindent 8 }}
+      annotations: {}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "test-service.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: app
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8000
+          command:
+            {{- range .Values.image.command }}
+            - {{ . | quote }}
+            {{- end }}
+          env:
+            - name: HOSTNAME
+              value: 0.0.0.0
+
+        {{- if .Values.jwtSidecar.create }}
+        - name: jwt-sidecar
+          image: {{ .Values.jwtSidecar.repository | required "jwtSidecar.repository is required." }}:{{ .Values.jwtSidecar.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          resources: {{ .Values.jwtSidecar.resources | mustToJson }}
+          env:
+            - name: AUTH_LISTEN
+              value: 0.0.0.0:8000
+            - name: AUTH_PROXY
+              value: 127.0.0.1:8001
+            - name: AUTH_JWKS_URL
+              value: {{ .Values.jwtSidecar.jwksUrl | required "jwtSidecar.jwksUrl is required" | quote }}
+            - name: AUTH_VALID_AUDIENCES
+              value: {{ .Values.jwtSidecar.validAudiences | required "jwtSidecar.validAudiences is required" | quote }}
+            - name: AUTH_VALID_ISSUERS
+              value: {{ .Values.jwtSidecar.validIssuers | required "jwtSidecar.validIssuers is required" | quote }}
+            - name: AUTH_PROXY_TYPE
+              value: validated-headers
+            {{ if .Values.jwtSidecar.enableRefresh }}
+            - name: AUTH_REFRESH_ENABLED
+              value: "true"
+            - name: AUTH_AUTH0_DOMAIN
+              value: {{ .Values.jwtSidecar.domain | required "jwtSidecar.domain is required if jwtSidecar.enableRefresh is true" | quote }}
+            - name: AUTH_COOKIE_DOMAIN
+              value: {{ .Values.ingress.baseDomain }}
+            - name: AUTH_AUTH0_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.jwtSidecar.secretName | required "jwtSidecar.secretName is required if jwtSidecar.enableRefresh is true" | quote }}
+                  key: "client_id"
+            - name: AUTH_AUTH0_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.jwtSidecar.secretName | required "jwtSidecar.secretName is required if jwtSidecar.enableRefresh is true" | quote }}
+                  key: "client_secret"
+            {{ else }}
+            - name: AUTH_REFRESH_ENABLED
+              value: "false"
+            {{ end }}
+            - name: AUTH_STATSD_ENABLED
+              value: "true"
+            - name: BARE_STATSD_HOST
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+            - name: AUTH_STATSD_HOST
+              value: "$(BARE_STATSD_HOST):8125"
+            - name: NAMESPACE_TAG
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: POD_NAME_TAG
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: AUTH_STATSD_TAGS
+              value: "kube_namespace:$(NAMESPACE_TAG),pod_name:$(POD_NAME_TAG),service:test-service"
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 2
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+        {{- end }}
+
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

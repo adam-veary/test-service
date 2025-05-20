@@ -1,0 +1,72 @@
+replicaCount: 2
+labels: 
+    xometry.com/domain: mktp
+image:
+  repository: 694713800774.dkr.ecr.us-east-2.amazonaws.com/test-service
+  tag:
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+deploymentEnvironment: ""
+releaseVersion: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: false
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name:
+  iamRoleArn:
+
+podSecurityContext: {}
+
+securityContext: {}
+
+jwtSidecar:
+  create: false
+  repository: 694713800774.dkr.ecr.us-east-2.amazonaws.com/jwt-validation-sidecar
+  tag: v1.6.0
+  jwksUrl:
+  validIssuers:
+  enableRefresh: false
+  domain:
+  secretName:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 50Mi
+    limits:
+      cpu: 50m
+      memory: 50Mi
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  baseDomain: managed.kubernetes.stage.xometry.net # REQUIRED: "xometry.com" "stage.xometry.net" "mynamespace.dev-eks.xometry.net"
+  subDomain: test-service # REQUIRED: "www" "get"
+  prefix: / # REQUIRED
+  protocol: http
+  annotations: {}
+  ingressClassName: nginx-ingress-internal 
+  # tlsSecret: # OPTIONAL - if this is set, then an ingress TLS section will be filled out with this secret name
+
+resources:
+  requests:
+    cpu: 0.5
+    memory: 256M
+  limits:
+    cpu: 1
+    memory: 256M
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+logLevel: "WARNING"

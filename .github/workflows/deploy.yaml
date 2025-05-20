@@ -1,0 +1,109 @@
+name: Deploy
+run-name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "release tag"
+        required: true
+
+jobs:
+  DeployToStaging:
+    runs-on: ubuntu-latest
+    env:
+      env_name: stage
+    environment:
+      name: stage
+      url: https://test-service.managed.kubernetes.stage.xometry.net
+    steps:
+      - name: Get Version Number
+        run: |
+          VERSION_NUMBER=${{ inputs.release_tag }}
+          HELM_VERSION=${VERSION_NUMBER}
+          echo $VERSION_NUMBER
+          echo "HELM_VERSION=$HELM_VERSION" >> $GITHUB_ENV
+      - name: Deploy to ArgoCD repository
+        uses: xometry/the-forge/argo-push@argo-push-v1
+        with:
+          environment: ${{ env.env_name }}
+          repo_name: test-service
+          helm_version: ${{env.HELM_VERSION}}
+          cluster_name: managed-global-stage
+          git_key: ${{ secrets.ARGO_DEPLOYKEY_NONPROD }}
+          surgical_values_update: |
+            image:
+              tag: ${{ inputs.release_tag }}
+            releaseVersion: ${{ inputs.release_tag }}
+  VerifyArgoStagingDeployment:
+    runs-on: [self-hosted, mgmt-eks]
+    needs: DeployToStaging
+    env:
+      env_name: stage
+    steps:
+      - name: verify-deployment-stage
+        uses: xometry/the-forge/argo-verify-deploy@argo-verify-deploy-v1
+        with:
+          # releasetrain defaults to true if arg is missing or not specified
+          releasetrain_slack_notify: true
+          # next arg only needed if we want to specify an additional channel
+          #additional_slack_notify:
+          environment: ${{ env.env_name }}
+          app_name: test-service
+          cluster_name: managed-global-stage
+          git_key: ${{ secrets.ARGO_DEPLOYKEY_NONPROD }}
+          argo_api_key: ${{ secrets.ARGO_READONLY_MANAGED_GLOBAL_STAGE }}
+          slack_token: ${{ secrets.ARGO_VERIFY_DEPLOY_SLACK_TOKEN }}
+          debug: true
+
+# add if statement that checks the branch is main 
+# 
+#  DeployToProd:
+#    runs-on: ubuntu-latest
+#    needs: VerifyArgoStagingDeployment
+#    if: github.ref == 'refs/heads/main'
+#    env:
+#      env_name: prod
+#    environment:
+#      name: prod
+#      url: https://\{\{service\}\}.xmtr.io
+#    steps:
+#      - name: Get Version Number
+#        run: |
+#          VERSION_NUMBER=${{ inputs.release_tag }}
+#          HELM_VERSION=${VERSION_NUMBER:1}
+#          echo $VERSION_NUMBER
+#          echo "HELM_VERSION=$HELM_VERSION" >> $GITHUB_ENV
+#      - name: Deploy to ArgoCD repository
+#        uses: xometry/the-forge/argo-push@argo-push-v1
+#        with:
+#          environment: ${{ env.env_name }}
+#          repo_name: test-service
+#          helm_version: ${{env.HELM_VERSION}}
+#          cluster_name: managed-global-prod
+#          git_key: ${{ secrets.ARGO_DEPLOYKEY_PROD }}
+#          surgical_values_update: |
+#            image:
+#              tag: ${{ inputs.release_tag }}
+#            releaseVersion: ${{ inputs.release_tag }}
+#  VerifyArgoProdDeployment:
+#    runs-on: [self-hosted, mgmt-eks]
+#    needs: DeployToProd
+#    env:
+#      env_name: prod
+#    steps:
+#      - name: verify-deployment-prod
+#        uses: xometry/the-forge/argo-verify-deploy@argo-verify-deploy-v1
+#        with:
+#          # releasetrain defaults to true if arg is missing or not specified
+#          releasetrain_slack_notify: true
+#          # next arg only needed if we want to specify an additional channel
+#          #additional_slack_notify:
+#          environment: ${{ env.env_name }}
+#          app_name: test-service
+#          cluster_name: managed-global-prod
+#          git_key: ${{ secrets.ARGO_DEPLOYKEY_PROD }}
+#          argo_api_key: ${{ secrets.ARGO_READONLY_MANAGED_GLOBAL_PROD }}
+#          slack_token: ${{ secrets.ARGO_VERIFY_DEPLOY_SLACK_TOKEN }}
+#
+                                                                                                                                                                        

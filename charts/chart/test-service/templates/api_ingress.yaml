@@ -1,0 +1,32 @@
+{{- if .Values.ingress.enabled }}
+{{- $fullName := include "test-service.fullname" . -}}
+{{- $svcPort := .Values.service.port -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "test-service.labels" . | nindent 4 }}
+    {{- include "test-service.selectorLabels" . | nindent 4 }}
+  annotations:
+    {{- toYaml .Values.ingress.annotations | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.ingress.ingressClassName }}
+  rules:
+    - host: {{ .Values.ingress.subDomain | required "You must specify ingress.subDomain" }}.{{ .Values.ingress.baseDomain | required "You must specify ingress.baseDomain" }}
+      http:
+        paths:
+          - path: {{ .Values.ingress.prefix | quote }}
+            pathType: {{ default "ImplementationSpecific" .Values.ingress.pathType }}
+            backend:
+              service:
+                name: {{ $fullName }}
+                port:
+                  number: {{ $svcPort }}
+{{- if .Values.tlsSecretPrefix }}
+  tls:
+    - hosts:
+      - {{ .Values.ingress.subDomain }}.{{ .Values.ingress.baseDomain }}
+      secretName: {{ .Values.tlsSecret }}
+{{- end }}
+{{- end }}

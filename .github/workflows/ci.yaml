@@ -1,0 +1,36 @@
+name: CI
+run-name: Continuous Integration
+
+on:
+  push:
+    paths-ignore:
+      - "**.md"
+
+jobs:
+  DockerBuild:
+    runs-on: [self-hosted, mgmt-eks]
+    steps:
+      - name: Docker Build
+        uses: xometry/the-forge/docker-build@docker-build-v2
+        with:
+          repository: test-service
+          tag: ${{ github.sha }}
+          scanning_error_code: 0
+          docker_secrets: |
+            github_npm_pat=${{ secrets.NPM_TOKEN }}
+
+
+  LintAndTest:
+    runs-on: [ubuntu-latest]
+    env:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: "20"
+          cache: yarn
+      - run: |
+          yarn --frozen-lockfile
+          yarn lint
+          yarn test
