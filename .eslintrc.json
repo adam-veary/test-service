@@ -1,6 +1,0 @@
-{
-  "extends": ["@xometry/backend"],
-  "parserOptions": {
-    "project": ["./tsconfig.json"]
-  }
-}
